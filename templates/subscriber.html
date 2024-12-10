@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">MQTT数据订阅器</h5>
+    </div>
+    <div class="card-body">
+        <!-- 连接设置 -->
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <div class="input-group">
+                    <input type="text" class="form-control" id="broker" placeholder="Broker地址" value="localhost">
+                    <input type="number" class="form-control" id="port" placeholder="端口" value="1883" style="max-width: 150px;">
+                    <button class="btn btn-primary" id="connectBtn">连接</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 图表显示 -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card mb-4">
+                    <div class="card-header">温度数据</div>
+                    <div class="card-body">
+                        <canvas id="tempChart"></canvas>
+                    </div>
+                </div>
+                <div class="card mb-4">
+                    <div class="card-header">湿度数据</div>
+                    <div class="card-body">
+                        <canvas id="humidChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据日志 -->
+        <div class="card">
+            <div class="card-header">实时数据</div>
+            <div class="card-body">
+                <div id="dataLog" class="bg-light p-3" style="height: 200px; overflow-y: auto;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

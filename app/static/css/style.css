@@ -1,0 +1,29 @@
+.navbar {
+    margin-bottom: 20px;
+}
+
+.card {
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0,0,0,0.125);
+}
+
+#statusLog, #dataLog {
+    font-family: monospace;
+    font-size: 0.9em;
+}
+
+.log-entry {
+    padding: 4px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+} 
