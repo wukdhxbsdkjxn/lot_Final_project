@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    /* 设置页面背景为紫蓝色渐变，这里是从深蓝色到紫色的渐变，可按需调整颜色及方向 */
+    body {
+        background: linear-gradient(to bottom, #00008B, #8A2BE2);
+        font-family: Arial, sans-serif; /* 设置全局字体为 Arial 或无衬线字体 */
+    }
+
+ .card {
+        background-color: #fff; /* 设置 card 背景颜色为白色 */
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* 添加卡片阴影效果 */
+    }
+
+ .card-header {
+        background-color: #007bff; /* 设置 card 头部背景颜色为蓝色 */
+        color: #fff; /* 设置 card 头部文字颜色为白色 */
+    }
+
+ .form-text {
+        color: #6c757d; /* 设置表单提示文字颜色为灰色 */
+    }
+
+ .text-success {
+        color: #28a745; /* 设置成功提示文字颜色为绿色 */
+    }
+
+ .text-info {
+        color: #17a2b8; /* 设置信息提示文字颜色为浅蓝色 */
+    }
+
+ .text-warning {
+        color: #ffc107; /* 设置警告提示文字颜色为黄色 */
+    }
+</style>
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">MQTT数据发布器 - 连接设置</h5>
+            </div>
+            <div class="card-body">
+                <!-- 连接设置 -->
+                <div class="form-group mb-3">
+                    <label for="broker">Broker地址</label>
+                    <input type="text" class="form-control" id="broker" placeholder="请输入MQTT Broker地址" value="localhost">
+                    <small class="form-text text-muted">这里填写MQTT服务器的地址，例如：localhost表示本地服务器。若使用远程服务器，请输入其公网或内网地址。</small>
+                </div>
+                <div class="form-group mb-3">
+                    <label for="port">端口</label>
+                    <input type="number" class="form-control" id="port" placeholder="请输入端口号" value="1883">
+                    <small class="form-text text-muted">MQTT服务器默认端口为1883，若服务器配置了其他端口，请在此处修改。</small>
+                </div>
+                <button class="btn btn-primary" id="connectBtn">连接</button>
+                <div id="connectStatus" class="mt-2"></div> 
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">文件上传与发布控制</h5>
+            </div>
+            <div class="card-body">
+                <div class="form-group mb-3">
+                    <input type="file" class="form-control" id="dataFile" accept=".txt">
+                    <small class="form-text text-muted">仅支持上传.txt格式的文本文件。请确保文件内容符合MQTT发布数据的要求。</small>
+                </div>
+                <button class="btn btn-success" id="startBtn" disabled>开始发布</button>
+                <button class="btn btn-danger" id="stopBtn" disabled>停止发布</button>
+                <div id="publishStatus" class="mt-2"></div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">状态日志</h5>
+            </div>
+            <div class="card-body">
+                <div id="statusLog" class="bg-light p-3" style="height: 300px; overflow-y: auto;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+    // 获取页面上的相关DOM元素
+    const connectBtn = document.getElementById('connectBtn');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const statusLog = document.getElementById('statusLog');
+    const connectStatus = document.getElementById('connectStatus');
+    const publishStatus = document.getElementById('publishStatus');
+
+    // 连接按钮点击事件处理函数（目前只是简单示例，实际需要对接MQTT连接逻辑）
+    connectBtn.addEventListener('click', function () {
+        // 这里可以添加真正连接MQTT服务器的代码，比如使用MQTT.js库等
+        // 暂时先简单往状态日志里添加一条记录表示点击了连接按钮
+        statusLog.innerHTML += '<p>点击了连接按钮</p>';
+
+        // 模拟连接状态反馈（实际需要根据真实连接情况修改）
+        connectStatus.innerHTML = '<p class="text-success">正在尝试连接到MQTT服务器...</p>';
+
+        // 假设连接成功后（实际需要真实的连接逻辑判断）
+        setTimeout(() => {
+            connectStatus.innerHTML = '<p class="text-success">已成功连接到MQTT服务器。</p>';
+            startBtn.disabled = false;
+        }, 2000);
+    });
+
+    // 开始发布按钮点击事件处理函数（同样，实际需要补充完整发布逻辑）
+    startBtn.addEventListener('click', function () {
+        // 可以添加开始发布数据的相关代码逻辑，比如读取文件内容并发布到MQTT主题等
+        statusLog.innerHTML += '<p>点击了开始发布按钮</p>';
+
+        // 模拟发布状态反馈（实际需要根据真实发布情况修改）
+        publishStatus.innerHTML = '<p class="text-info">正在发布数据，请稍候...</p>';
+
+        // 假设发布过程中（实际需要真实的发布逻辑和时间控制）
+        setTimeout(() => {
+            publishStatus.innerHTML = '<p class="text-success">数据发布成功。</p>';
+        }, 3000);
+    });
+
+    // 停止发布按钮点击事件处理函数
+    stopBtn.addEventListener('click', function () {
+        // 添加停止发布的相关逻辑代码
+        statusLog.innerHTML += '<p>点击了停止发布按钮</p>';
+
+        // 模拟停止发布状态反馈（实际需要根据真实停止情况修改）
+        publishStatus.innerHTML = '<p class="text-warning">已停止数据发布。</p>';
+    });
+</script>
+{% endblock %}
