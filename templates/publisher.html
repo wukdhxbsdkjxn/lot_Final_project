@@ -51,6 +51,14 @@
                     <input type="number" class="form-control" id="port" placeholder="请输入端口号" value="1883">
                     <small class="form-text text-muted">MQTT服务器默认端口为1883，若服务器配置了其他端口，请在此处修改。</small>
                 </div>
+                <div class="form-group mb-3">
+                    <label for="topic">发布主题</label>
+                    <input type="text" class="form-control" id="topic" placeholder="请输入发布主题" value="sensor/data">
+                    <small class="form-text text-muted">
+                        设置MQTT发布主题。消息将被保留，新订阅者可以收到最新状态。
+                        使用QoS 1确保消息可靠传递。
+                    </small>
+                </div>
                 <button class="btn btn-primary" id="connectBtn">连接</button>
                 <div id="connectStatus" class="mt-2"></div> 
             </div>
@@ -105,7 +113,7 @@
         // 模拟连接状态反馈（实际需要根据真实连接情况修改）
         connectStatus.innerHTML = '<p class="text-success">正在尝试连接到MQTT服务器...</p>';
 
-        // 假设连接成功后（实际需要真实的连接逻辑判断）
+        // 假设连接成功后（实际需要真实的连接逻���判断）
         setTimeout(() => {
             connectStatus.innerHTML = '<p class="text-success">已成功连接到MQTT服务器。</p>';
             startBtn.disabled = false;
@@ -132,7 +140,7 @@
         statusLog.innerHTML += '<p>点击了停止发布按钮</p>';
 
         // 模拟停止发布状态反馈（实际需要根据真实停止情况修改）
-        publishStatus.innerHTML = '<p class="text-warning">已停止数据发布。</p>';
+        publishStatus.innerHTML = '<p class="text-warning">已停止���据发布。</p>';
     });
 </script>
 {% endblock %}

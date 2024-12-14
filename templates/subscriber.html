@@ -8,10 +8,19 @@
         <!-- 连接设置 -->
         <div class="row mb-4">
             <div class="col-md-8">
-                <div class="input-group">
+                <div class="input-group mb-3">
                     <input type="text" class="form-control" id="broker" placeholder="Broker地址" value="localhost">
                     <input type="number" class="form-control" id="port" placeholder="端口" value="1883" style="max-width: 150px;">
                     <button class="btn btn-primary" id="connectBtn">连接</button>
+                </div>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="topic" placeholder="订阅主题" value="sensor/data">
+                    <button class="btn btn-success" id="subscribeBtn" disabled>订阅</button>
+                    <button class="btn btn-danger" id="unsubscribeBtn" disabled>取消订阅</button>
+                </div>
+                <div id="topicList" class="mt-2">
+                    <small class="text-muted">已订阅的主题：</small>
+                    <div class="subscribed-topics"></div>
                 </div>
             </div>
         </div>

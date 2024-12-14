@@ -12,9 +12,39 @@
             <div class="navbar-nav">
                 <a class="nav-link" href="/publisher">发布端</a>
                 <a class="nav-link" href="/subscriber">订阅端</a>
+                <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#featuresModal">功能说明</a>
             </div>
         </div>
     </nav>
+
+    <!-- 添加功能说明模态框 -->
+    <div class="modal fade" id="featuresModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">系统功能说明</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <h6>消息传递特性：</h6>
+                    <ul>
+                        <li>
+                            <strong>持久会话：</strong>
+                            订阅者离线时消息会被保存，重新连接后可以收到离线期间的消息。
+                        </li>
+                        <li>
+                            <strong>消息保留：</strong>
+                            系统保存每个主题的最新消息，新订阅者连接时可立即获得最新状态。
+                        </li>
+                        <li>
+                            <strong>可靠传递：</strong>
+                            使用 QoS 1 确保消息至少送达一次，防止消息丢失。
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="container mt-4">
         {% block content %}{% endblock %}
