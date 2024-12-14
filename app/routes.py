@@ -50,22 +50,8 @@ def publish():
 
 @app.route('/api/publish_batch', methods=['POST'])
 def publish_batch():
-    try:
-        data_batch = request.json['data']
-        success = True
-        
-        # 批量发布数据
-        for data in data_batch:
-            if not mqtt_client.publish(data):
-                success = False
-                break
-        
-        return jsonify({'success': success})
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'批量发布错误: {str(e)}'
-        }), 500
+    # 删除这个路由
+    pass
 
 @socketio.on('connect')
 def handle_connect():

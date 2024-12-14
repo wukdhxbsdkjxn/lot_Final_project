@@ -4,9 +4,7 @@ let publishing = false;
 let tempChart = null;
 let humidChart = null;
 const maxDataPoints = 50;
-let collectedData = [];  // 用于存储所有接收到的数据
-let displayBuffer = [];  // 用于图表显示的缓冲区
-const bufferSize = 10;   // 图表更新缓冲区大小
+let collectedData = [];  // 保留这个用于预测功能
 
 // 初始化图表
 function initCharts() {
@@ -128,28 +126,6 @@ async function connectBroker() {
     }
 }
 
-// 添加MQTT连接状态监听
-socket.on('mqtt_connected', function(data) {
-    const connectBtn = document.getElementById('connectBtn');
-    const startBtn = document.getElementById('startBtn');
-    
-    if (data.status) {
-        alert('已成功连接到MQTT服务器！');
-        connectBtn.disabled = true;
-        connectBtn.textContent = '已连接';
-        if (startBtn) {
-            startBtn.disabled = false;
-        }
-    } else {
-        alert('MQTT连接失败：' + (data.error || '未知错误'));
-        connectBtn.disabled = false;
-        connectBtn.textContent = '连接';
-        if (startBtn) {
-            startBtn.disabled = true;
-        }
-    }
-});
-
 // 发布者相关函数
 function startPublishing() {
     const fileInput = document.getElementById('dataFile');
@@ -173,19 +149,34 @@ function startPublishing() {
 
 async function publishData(lines) {
     try {
-        // 解析所有数据
-        const allData = [];
         for (let line of lines) {
+            if (!publishing) break;
+            
             try {
                 const dataObj = JSON.parse(line.trim());
-                // 遍历每个时间点的数据
                 for (const [timestamp, value] of Object.entries(dataObj)) {
+                    if (!publishing) break;
+                    
                     if (timestamp && !isNaN(parseFloat(value))) {
-                        allData.push({
+                        const data = {
                             temperature: parseFloat(value),
                             humidity: 0,
                             time: timestamp
+                        };
+                        
+                        const response = await fetch('/api/publish', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(data)
                         });
+                        
+                        const log = document.getElementById('statusLog');
+                        log.innerHTML += `<div class="log-entry">已发布数据：${JSON.stringify(data)}</div>`;
+                        log.scrollTop = log.scrollHeight;
+                        
+                        await new Promise(resolve => setTimeout(resolve, 1000));
                     }
                 }
             } catch (error) {
@@ -193,32 +184,9 @@ async function publishData(lines) {
                 continue;
             }
         }
-
-        // 批量发送数据
-        const batchSize = 10;  // 减小批次大小到10条
-        const log = document.getElementById('statusLog');
-        
-        for (let i = 0; i < allData.length; i += batchSize) {
-            if (!publishing) break;
-            
-            const batch = allData.slice(i, i + batchSize);
-            const response = await fetch('/api/publish_batch', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ data: batch })
-            });
-
-            // 更新状态日志
-            log.innerHTML += `<div class="log-entry">已发布${batch.length}条数据 (${i + 1} - ${Math.min(i + batchSize, allData.length)}/${allData.length})</div>`;
-            log.scrollTop = log.scrollHeight;
-
-            // 增加延迟到500毫秒
-            await new Promise(resolve => setTimeout(resolve, 500));
-        }
         
         if (publishing) {
+            const log = document.getElementById('statusLog');
             log.innerHTML += `<div class="log-entry">所有数据发布完成！</div>`;
         }
     } catch (error) {
@@ -236,20 +204,13 @@ function stopPublishing() {
 // 订阅者相关函数
 socket.on('new_data', function(data) {
     if (tempChart && humidChart) {
-        // 收集所有数据用于预测
+        // 收集数据用于预测
         collectedData.push({
             timestamp: data.time,
             value: data.temperature
         });
         
-        // 添加数据到显示缓冲区
-        displayBuffer.push({
-            timestamp: data.time,
-            temperature: data.temperature,
-            humidity: data.humidity
-        });
-        
-        // 更新数据计数（使用collectedData的长度）
+        // 更新数据计数
         document.getElementById('dataCount').textContent = `已收集${collectedData.length}条数据`;
         
         // 当收集到足够数据时启用预测按钮
@@ -257,51 +218,37 @@ socket.on('new_data', function(data) {
             document.getElementById('predictBtn').disabled = false;
         }
 
-        // 批量更新图表
-        if (displayBuffer.length >= bufferSize) {
-            // 更新温度图表
-            displayBuffer.forEach(item => {
-                tempChart.data.datasets[0].data.push({
-                    x: new Date(item.timestamp),
-                    y: item.temperature
-                });
-                
-                humidChart.data.datasets[0].data.push({
-                    x: new Date(item.timestamp),
-                    y: item.humidity
-                });
-                
-                // 更新数据日志
-                const log = document.getElementById('dataLog');
-                log.innerHTML += `<div class="log-entry">${new Date(item.timestamp).toLocaleTimeString()} - 温度: ${item.temperature}°C, 湿度: ${item.humidity}%</div>`;
-            });
-            
-            // 限制数据点数量
-            while (tempChart.data.datasets[0].data.length > maxDataPoints) {
-                tempChart.data.datasets[0].data.shift();
-                humidChart.data.datasets[0].data.shift();
-            }
-            
-            // 使用requestAnimationFrame优化图表更新
-            requestAnimationFrame(() => {
-                tempChart.update('quiet');
-                humidChart.update('quiet');
-            });
-            
-            // 清空显示缓冲区
-            displayBuffer = [];
-            
-            // 限制日志条目数量
-            const log = document.getElementById('dataLog');
-            while (log.children.length > 100) {  // 保留最新的100条记录
-                log.removeChild(log.firstChild);
-            }
-            log.scrollTop = log.scrollHeight;
+        const time = new Date(data.time);
+        
+        // 更新温度图表
+        tempChart.data.datasets[0].data.push({
+            x: time,
+            y: data.temperature
+        });
+        
+        // 更新湿度图表
+        humidChart.data.datasets[0].data.push({
+            x: time,
+            y: data.humidity
+        });
+        
+        // 限制数据点数量
+        while (tempChart.data.datasets[0].data.length > maxDataPoints) {
+            tempChart.data.datasets[0].data.shift();
+            humidChart.data.datasets[0].data.shift();
         }
+        
+        tempChart.update();
+        humidChart.update();
+        
+        // 更新数据日志
+        const log = document.getElementById('dataLog');
+        log.innerHTML += `<div class="log-entry">${time.toLocaleTimeString()} - 温度: ${data.temperature}°C, 湿度: ${data.humidity}%</div>`;
+        log.scrollTop = log.scrollHeight;
     }
 });
 
-// 修改预测按钮事件处理
+// 保留预测按钮的事件处理代码
 document.getElementById('predictBtn')?.addEventListener('click', async function() {
     if (collectedData.length < 50) {
         alert('数据量不足，请至少收集50条数据');
@@ -352,6 +299,28 @@ document.getElementById('predictBtn')?.addEventListener('click', async function(
     }
 });
 
+// 添加MQTT连接状态监听
+socket.on('mqtt_connected', function(data) {
+    const connectBtn = document.getElementById('connectBtn');
+    const startBtn = document.getElementById('startBtn');
+    
+    if (data.status) {
+        alert('已成功连接到MQTT服务器！');
+        connectBtn.disabled = true;
+        connectBtn.textContent = '已连接';
+        if (startBtn) {
+            startBtn.disabled = false;
+        }
+    } else {
+        alert('MQTT连接失败：' + (data.error || '未知错误'));
+        connectBtn.disabled = false;
+        connectBtn.textContent = '连接';
+        if (startBtn) {
+            startBtn.disabled = true;
+        }
+    }
+});
+
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', function() {
     initCharts();
@@ -360,4 +329,4 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('connectBtn')?.addEventListener('click', connectBroker);
     document.getElementById('startBtn')?.addEventListener('click', startPublishing);
     document.getElementById('stopBtn')?.addEventListener('click', stopPublishing);
-}); 
+});

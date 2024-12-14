@@ -1,6 +1,7 @@
 import paho.mqtt.client as mqtt
 import json
 from app import socketio
+import time
 
 class MQTTClient:
     def __init__(self):
@@ -39,7 +40,9 @@ class MQTTClient:
             print(f"Attempting to connect to {broker}:{port}")
             self.client.connect(broker, port, keepalive=60)
             self.client.loop_start()
-            return True
+            # 等待一小段时间确保连接完成
+            time.sleep(0.5)
+            return self.connected
         except Exception as e:
             print(f"Connection error: {e}")
             return False
@@ -62,21 +65,7 @@ class MQTTClient:
             return False
     
     def publish_batch(self, messages):
-        """批量发布消息"""
-        try:
-            if not self.connected:
-                return False
-                
-            success = True
-            for message in messages:
-                result = self.client.publish("sensor/data", json.dumps(message))
-                if result[0] != 0:
-                    success = False
-                    break
-            
-            return success
-        except Exception as e:
-            print(f"Batch publish error: {e}")
-            return False
+        # 删除这个方法
+        pass
 
 mqtt_client = MQTTClient() 
