@@ -4,6 +4,9 @@ let publishing = false;
 let tempChart = null;
 let humidChart = null;
 const maxDataPoints = 50;
+let collectedData = [];  // 用于存储所有接收到的数据
+let displayBuffer = [];  // 用于图表显示的缓冲区
+const bufferSize = 10;   // 图表更新缓冲区大小
 
 // 初始化图表
 function initCharts() {
@@ -169,47 +172,58 @@ function startPublishing() {
 }
 
 async function publishData(lines) {
-    for (let line of lines) {
-        if (!publishing) break;
-        
-        try {
-            // 解析JSON格式的数据行
-            const dataObj = JSON.parse(line.trim());
-            
-            // 遍历每个时间点的数据
-            for (const [timestamp, value] of Object.entries(dataObj)) {
-                if (!publishing) break;
-
-                // 验证数据格式
-                if (!timestamp || isNaN(parseFloat(value))) {
-                    console.warn('跳过无效数据:', timestamp, value);
-                    continue;
+    try {
+        // 解析所有数据
+        const allData = [];
+        for (let line of lines) {
+            try {
+                const dataObj = JSON.parse(line.trim());
+                // 遍历每个时间点的数据
+                for (const [timestamp, value] of Object.entries(dataObj)) {
+                    if (timestamp && !isNaN(parseFloat(value))) {
+                        allData.push({
+                            temperature: parseFloat(value),
+                            humidity: 0,
+                            time: timestamp
+                        });
+                    }
                 }
-
-                const message = {
-                    temperature: parseFloat(value),  // 温度值
-                    humidity: 0,  // 由于数据中只有一个值，我们可以只展示温度
-                    time: timestamp
-                };
-
-                const response = await fetch('/api/publish', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(message)
-                });
-
-                const log = document.getElementById('statusLog');
-                log.innerHTML += `<div class="log-entry">${timestamp} - 已发布: 温度=${value}°C</div>`;
-                log.scrollTop = log.scrollHeight;
-
-                await new Promise(resolve => setTimeout(resolve, 1000)); // 每秒发送一个数据点
+            } catch (error) {
+                console.warn('跳过无效数据行:', line);
+                continue;
             }
-        } catch (error) {
-            console.error('发布错误：', error);
-            continue; // 跳过错误的行，继续处理下一行
         }
+
+        // 批量发送数据
+        const batchSize = 10;  // 减小批次大小到10条
+        const log = document.getElementById('statusLog');
+        
+        for (let i = 0; i < allData.length; i += batchSize) {
+            if (!publishing) break;
+            
+            const batch = allData.slice(i, i + batchSize);
+            const response = await fetch('/api/publish_batch', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ data: batch })
+            });
+
+            // 更新状态日志
+            log.innerHTML += `<div class="log-entry">已发布${batch.length}条数据 (${i + 1} - ${Math.min(i + batchSize, allData.length)}/${allData.length})</div>`;
+            log.scrollTop = log.scrollHeight;
+
+            // 增加延迟到500毫秒
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        if (publishing) {
+            log.innerHTML += `<div class="log-entry">所有数据发布完成！</div>`;
+        }
+    } catch (error) {
+        console.error('发布错误：', error);
+        alert('发布数据时出错：' + error.message);
     }
 }
 
@@ -222,32 +236,119 @@ function stopPublishing() {
 // 订阅者相关函数
 socket.on('new_data', function(data) {
     if (tempChart && humidChart) {
-        // 更新图表
-        const time = new Date(data.time);
-        
-        tempChart.data.datasets[0].data.push({
-            x: time,
-            y: data.temperature
+        // 收集所有数据用于预测
+        collectedData.push({
+            timestamp: data.time,
+            value: data.temperature
         });
         
-        humidChart.data.datasets[0].data.push({
-            x: time,
-            y: data.humidity
+        // 添加数据到显示缓冲区
+        displayBuffer.push({
+            timestamp: data.time,
+            temperature: data.temperature,
+            humidity: data.humidity
         });
-
-        // 限制数据点数量
-        if (tempChart.data.datasets[0].data.length > maxDataPoints) {
-            tempChart.data.datasets[0].data.shift();
-            humidChart.data.datasets[0].data.shift();
+        
+        // 更新数据计数（使用collectedData的长度）
+        document.getElementById('dataCount').textContent = `已收集${collectedData.length}条数据`;
+        
+        // 当收集到足够数据时启用预测按钮
+        if (collectedData.length >= 50) {
+            document.getElementById('predictBtn').disabled = false;
         }
 
-        tempChart.update();
-        humidChart.update();
+        // 批量更新图表
+        if (displayBuffer.length >= bufferSize) {
+            // 更新温度图表
+            displayBuffer.forEach(item => {
+                tempChart.data.datasets[0].data.push({
+                    x: new Date(item.timestamp),
+                    y: item.temperature
+                });
+                
+                humidChart.data.datasets[0].data.push({
+                    x: new Date(item.timestamp),
+                    y: item.humidity
+                });
+                
+                // 更新数据日志
+                const log = document.getElementById('dataLog');
+                log.innerHTML += `<div class="log-entry">${new Date(item.timestamp).toLocaleTimeString()} - 温度: ${item.temperature}°C, 湿度: ${item.humidity}%</div>`;
+            });
+            
+            // 限制数据点数量
+            while (tempChart.data.datasets[0].data.length > maxDataPoints) {
+                tempChart.data.datasets[0].data.shift();
+                humidChart.data.datasets[0].data.shift();
+            }
+            
+            // 使用requestAnimationFrame优化图表更新
+            requestAnimationFrame(() => {
+                tempChart.update('quiet');
+                humidChart.update('quiet');
+            });
+            
+            // 清空显示缓冲区
+            displayBuffer = [];
+            
+            // 限制日志条目数量
+            const log = document.getElementById('dataLog');
+            while (log.children.length > 100) {  // 保留最新的100条记录
+                log.removeChild(log.firstChild);
+            }
+            log.scrollTop = log.scrollHeight;
+        }
+    }
+});
 
-        // 更新数据日志
-        const log = document.getElementById('dataLog');
-        log.innerHTML += `<div class="log-entry">${time.toLocaleTimeString()} - 温度: ${data.temperature}°C, 湿度: ${data.humidity}%</div>`;
-        log.scrollTop = log.scrollHeight;
+// 修改预测按钮事件处理
+document.getElementById('predictBtn')?.addEventListener('click', async function() {
+    if (collectedData.length < 50) {
+        alert('数据量不足，请至少收集50条数据');
+        return;
+    }
+    
+    // 创建加载提示
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'position-fixed top-50 start-50 translate-middle';
+    loadingDiv.style.zIndex = '1000';
+    loadingDiv.innerHTML = `
+        <div class="card p-4 shadow">
+            <div class="d-flex align-items-center">
+                <div class="spinner-border text-primary me-3" role="status">
+                    <span class="visually-hidden">加载中...</span>
+                </div>
+                <div>正在处理数据并训练模型，请稍候...</div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(loadingDiv);
+    
+    try {
+        // 禁用预测按钮
+        const predictBtn = document.getElementById('predictBtn');
+        predictBtn.disabled = true;
+        
+        const response = await fetch('/api/predict', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ data: collectedData })
+        });
+        
+        if (response.ok) {
+            window.location.href = '/prediction_results';
+        } else {
+            throw new Error('预测请求失败');
+        }
+    } catch (error) {
+        alert('预测错误：' + error.message);
+    } finally {
+        // 移除加载提示
+        document.body.removeChild(loadingDiv);
+        // 重新启用预测按钮
+        document.getElementById('predictBtn').disabled = false;
     }
 });
 

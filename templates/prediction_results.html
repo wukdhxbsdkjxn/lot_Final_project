@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block content %}
+<!-- 添加加载提示 -->
+<div id="loadingIndicator" class="position-fixed top-50 start-50 translate-middle" style="z-index: 1000; display: none;">
+    <div class="card p-4 shadow">
+        <div class="d-flex align-items-center">
+            <div class="spinner-border text-primary me-3" role="status">
+                <span class="visually-hidden">加载中...</span>
+            </div>
+            <div>模型训练中，请稍候...</div>
+        </div>
+    </div>
+</div>
+
+<!-- 原有的卡片内容 -->
+<div id="resultContent" style="display: none;">
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">预测分析结果</h5>
+        </div>
+        <div class="card-body">
+            <!-- 图表显示 -->
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card mb-4">
+                        <div class="card-header">测试集预测结果对比</div>
+                        <div class="card-body">
+                            <canvas id="predictionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 数据表格 -->
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">预测数据详情</div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>时间</th>
+                                            <th>实际值</th>
+                                            <th>预测值</th>
+                                            <th>误差</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="predictionTable">
+                                        <!-- 数据将通过JavaScript动态填充 -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', async function() {
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const resultContent = document.getElementById('resultContent');
+    
+    try {
+        loadingIndicator.style.display = 'block';
+        const response = await fetch('/api/prediction_results');
+        const results = await response.json();
+        
+        // 填充数据表格
+        const tableBody = document.getElementById('predictionTable');
+        results.timestamps.forEach((timestamp, index) => {
+            const actualValue = results.actual_values[index];
+            const predictedValue = results.predicted_values[index];
+            const error = Math.abs(actualValue - predictedValue);
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${new Date(timestamp).toLocaleString()}</td>
+                <td>${actualValue.toFixed(2)}°C</td>
+                <td>${predictedValue.toFixed(2)}°C</td>
+                <td>${error.toFixed(2)}°C</td>
+            `;
+            tableBody.appendChild(row);
+        });
+        
+        // 准备图表数据
+        const chartData = results.timestamps.map((timestamp, index) => ({
+            x: new Date(timestamp).getTime(),
+            actualValue: results.actual_values[index],
+            predictedValue: results.predicted_values[index]
+        })).sort((a, b) => a.x - b.x);
+        
+        // 绘制预测结果图表
+        const ctx = document.getElementById('predictionChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: '实际值',
+                    data: chartData.map(point => ({
+                        x: point.x,
+                        y: point.actualValue
+                    })),
+                    borderColor: 'rgb(54, 162, 235)',
+                    fill: false,
+                    pointRadius: 3,
+                    pointHoverRadius: 5
+                }, {
+                    label: '预测值',
+                    data: chartData.map(point => ({
+                        x: point.x,
+                        y: point.predictedValue
+                    })),
+                    borderColor: 'rgb(255, 99, 132)',
+                    fill: false,
+                    pointRadius: 3,
+                    pointHoverRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'hour',
+                            displayFormats: {
+                                hour: 'MM-dd HH:mm'
+                            },
+                            tooltipFormat: 'yyyy-MM-dd HH:mm'
+                        },
+                        title: {
+                            display: true,
+                            text: '时间'
+                        },
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: '温度 (°C)'
+                        },
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        enabled: true,
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.dataset.label}: ${context.parsed.y.toFixed(2)}°C`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // 处理完成后显示结果
+        loadingIndicator.style.display = 'none';
+        resultContent.style.display = 'block';
+    } catch (error) {
+        loadingIndicator.style.display = 'none';
+        alert('获取预测结果失败：' + error.message);
+    }
+});
+</script>
+{% endblock %} 
