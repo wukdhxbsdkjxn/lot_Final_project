@@ -1,6 +1,7 @@
 import paho.mqtt.client as mqtt
 import json
 from app import socketio
+import time
 
 class MQTTClient:
     def __init__(self, client_id):
@@ -10,6 +11,8 @@ class MQTTClient:
         self.connected = False
         self.subscribed_topics = set()
         self.client_id = client_id
+        self.publish_queue = []
+        self.batch_size = 50
 
     def on_connect(self, client, userdata, flags, rc):
         if rc == 0:
@@ -22,7 +25,7 @@ class MQTTClient:
         else:
             print(f"Client {self.client_id} Failed to connect, return code {rc}")
             self.connected = False
-            socketio.emit(f'mqtt_connected_{self.client_id}', 
+            socketio.emit(f'mqtt_connected_{self.client_id}',
                         {'status': False, 'error': f'连接失败，错误代码：{rc}'})
 
     def on_message(self, client, userdata, msg):
@@ -40,7 +43,9 @@ class MQTTClient:
             print(f"Attempting to connect to {broker}:{port}")
             self.client.connect(broker, port, keepalive=60)
             self.client.loop_start()
-            return True
+            # 等待一小段时间确保连接完成
+            time.sleep(0.5)
+            return self.connected
         except Exception as e:
             print(f"Connection error: {e}")
             return False
@@ -83,4 +88,4 @@ class MQTTClient:
 
 # 创建两个独立的客户端实例
 publisher_client = MQTTClient('publisher')
-subscriber_client = MQTTClient('subscriber') 
+subscriber_client = MQTTClient('subscriber')

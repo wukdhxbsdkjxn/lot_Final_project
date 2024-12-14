@@ -1,10 +1,10 @@
 # 运行此程序可完成数据处理（项目内已存储处理后的数据，前端可利用处理后的数据画图展示）
-# 此程序利用raw_data文件夹中的80%数据训练模型，利用后20%数据进行模型预测
+# 此程序利用data文件夹中的80%数据训练模型，利用后20%数据进行模型预测
 # 并利用模型预测了raw data后24小时的数据
 
 # 所得处理后数据的解释(存储在result文件夹中)：
-# xxx_test_results.csv：包含xxx测试集(raw_data后20%)的实际值和预测值
-# xxx_future_predictions.csv：包含raw_data/xxx.txt未来24小时的预测值
+# xxx_test_results.csv：包含xxx测试集(data后20%)的实际值和预测值
+# xxx_future_predictions.csv：包含data/xxx.txt未来24小时的预测值
 
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
@@ -218,7 +218,7 @@ class WeatherPredictor:
 
 def main():
     # 定义输入输出路径
-    input_folder = "raw_data"  # 原始数据文件夹
+    input_folder = "data"  # 原始数据文件夹
     output_folder = "results"  # 输出结果文件夹
 
     # 创建输出文件夹（如果不存在）

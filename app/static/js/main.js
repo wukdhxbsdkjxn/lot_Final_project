@@ -4,6 +4,7 @@ let publishing = false;
 let tempChart = null;
 let humidChart = null;
 const maxDataPoints = 50;
+let collectedData = [];  // 保留这个用于预测功能
 
 // 初始化图表
 function initCharts() {
@@ -100,7 +101,7 @@ async function connectBroker() {
     
     // 根据页面类型确定客户端类型
     const client_type = window.location.pathname.includes('publisher') ? 'publisher' : 'subscriber';
-    
+
     try {
         connectBtn.disabled = true;
         connectBtn.textContent = '连接中...';
@@ -134,7 +135,7 @@ socket.on(`mqtt_connected_${client_type}`, function(data) {
     const startBtn = document.getElementById('startBtn');
     const subscribeBtn = document.getElementById('subscribeBtn');
     const unsubscribeBtn = document.getElementById('unsubscribeBtn');
-    
+
     if (data.status) {
         alert('已成功连接到MQTT服务器！');
         connectBtn.disabled = true;
@@ -183,13 +184,13 @@ function startPublishing() {
 
 async function publishData(lines) {
     const topic = document.getElementById('topic').value || 'sensor/data';
-    
+
     for (let line of lines) {
         if (!publishing) break;
-        
+
         try {
             const dataObj = JSON.parse(line.trim());
-            
+
             for (const [timestamp, value] of Object.entries(dataObj)) {
                 if (!publishing) break;
 
@@ -235,16 +236,16 @@ function stopPublishing() {
 // 订阅者相关函数
 socket.on('new_data', function(data) {
     console.log('收到新数据:', data);  // 添加调试日志
-    
+
     // 检查消息主题是否在已订阅列表中
     const topicList = document.querySelector('.subscribed-topics');
     const topicItems = Array.from(topicList.getElementsByClassName('topic-item'));
     const isSubscribed = topicItems.some(item => item.textContent === data.topic);
-    
+
     console.log('已订阅主题:', topicItems.map(item => item.textContent));  // 添加调试日志
     console.log('当前消息主题:', data.topic);  // 添加调试日志
     console.log('是否已订阅:', isSubscribed);  // 添加调试日志
-    
+
     // 如果主题未订阅，则不处理该消息
     if (!isSubscribed) {
         console.log('主题未订阅，忽略消息');  // 添加调试日志
@@ -252,7 +253,20 @@ socket.on('new_data', function(data) {
     }
 
     if (tempChart && humidChart) {
-        // 更新图表
+        // 收集数据用于预测
+        collectedData.push({
+            timestamp: data.time,
+            value: data.temperature
+        });
+
+        // 更新数据计数
+        document.getElementById('dataCount').textContent = `已收集${collectedData.length}条数据`;
+
+        // 当收集到足够数据时启用预测按钮
+        if (collectedData.length >= 50) {
+            document.getElementById('predictBtn').disabled = false;
+        }
+
         const time = new Date(data.time);
         
         tempChart.data.datasets[0].data.push({
@@ -359,6 +373,79 @@ function removeFromTopicList(topic) {
         }
     }
 }
+
+// 保留预测按钮的事件处理代码
+document.getElementById('predictBtn')?.addEventListener('click', async function() {
+    if (collectedData.length < 50) {
+        alert('数据量不足，请至少收集50条数据');
+        return;
+    }
+
+    // 创建加载提示
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'position-fixed top-50 start-50 translate-middle';
+    loadingDiv.style.zIndex = '1000';
+    loadingDiv.innerHTML = `
+        <div class="card p-4 shadow">
+            <div class="d-flex align-items-center">
+                <div class="spinner-border text-primary me-3" role="status">
+                    <span class="visually-hidden">加载中...</span>
+                </div>
+                <div>正在处理数据并训练模型，请稍候...</div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(loadingDiv);
+
+    try {
+        // 禁用预测按钮
+        const predictBtn = document.getElementById('predictBtn');
+        predictBtn.disabled = true;
+
+        const response = await fetch('/api/predict', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ data: collectedData })
+        });
+
+        if (response.ok) {
+            window.location.href = '/prediction_results';
+        } else {
+            throw new Error('预测请求失败');
+        }
+    } catch (error) {
+        alert('预测错误：' + error.message);
+    } finally {
+        // 移除加载提示
+        document.body.removeChild(loadingDiv);
+        // 重新启用预测按钮
+        document.getElementById('predictBtn').disabled = false;
+    }
+});
+
+// 添加MQTT连接状态监听
+socket.on('mqtt_connected', function(data) {
+    const connectBtn = document.getElementById('connectBtn');
+    const startBtn = document.getElementById('startBtn');
+
+    if (data.status) {
+        alert('已成功连接到MQTT服务器！');
+        connectBtn.disabled = true;
+        connectBtn.textContent = '已连接';
+        if (startBtn) {
+            startBtn.disabled = false;
+        }
+    } else {
+        alert('MQTT连接失败：' + (data.error || '未知错误'));
+        connectBtn.disabled = false;
+        connectBtn.textContent = '连接';
+        if (startBtn) {
+            startBtn.disabled = true;
+        }
+    }
+});
 
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', function() {
