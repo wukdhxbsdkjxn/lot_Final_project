@@ -1,7 +1,6 @@
 from flask import render_template, request, jsonify
 from app import app, socketio
 from app.mqtt_client import publisher_client, subscriber_client
-from app.mqtt_client import mqtt_client
 from app.prediction import WeatherPredictor
 import json
 import pandas as pd

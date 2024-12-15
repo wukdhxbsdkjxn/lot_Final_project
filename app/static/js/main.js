@@ -128,7 +128,7 @@ async function connectBroker() {
     }
 }
 
-// 修改连接状态监听
+// 修改连接��态监听
 const client_type = window.location.pathname.includes('publisher') ? 'publisher' : 'subscriber';
 socket.on(`mqtt_connected_${client_type}`, function(data) {
     const connectBtn = document.getElementById('connectBtn');
@@ -166,7 +166,7 @@ function startPublishing() {
     const fileInput = document.getElementById('dataFile');
     const file = fileInput.files[0];
     if (!file) {
-        alert('请选择数据文件！');
+        alert('请��择数据文件！');
         return;
     }
 
@@ -235,23 +235,30 @@ function stopPublishing() {
 
 // 订阅者相关函数
 socket.on('new_data', function(data) {
-    console.log('收到新数据:', data);  // 添加调试日志
+    console.log('收到新数据:', data);
 
     // 检查消息主题是否在已订阅列表中
     const topicList = document.querySelector('.subscribed-topics');
     const topicItems = Array.from(topicList.getElementsByClassName('topic-item'));
     const isSubscribed = topicItems.some(item => item.textContent === data.topic);
 
-    console.log('已订阅主题:', topicItems.map(item => item.textContent));  // 添加调试日志
-    console.log('当前消息主题:', data.topic);  // 添加调试日志
-    console.log('是否已订阅:', isSubscribed);  // 添加调试日志
-
-    // 如果主题未订阅，则不处理该消息
     if (!isSubscribed) {
-        console.log('主题未订阅，忽略消息');  // 添加调试日志
+        console.log('主题未订阅，忽略消息');
         return;
     }
 
+    // 1. 首先更新数据日志
+    const log = document.getElementById('dataLog');
+    if (log) {
+        const time = new Date(data.time);
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        entry.textContent = `${time.toLocaleTimeString()} - [${data.topic}] 温度: ${data.temperature}°C, 湿度: ${data.humidity}%`;
+        log.appendChild(entry);
+        log.scrollTop = log.scrollHeight;
+    }
+
+    // 2. 然后更新图表
     if (tempChart && humidChart) {
         // 收集数据用于预测
         collectedData.push({
@@ -269,11 +276,13 @@ socket.on('new_data', function(data) {
 
         const time = new Date(data.time);
         
+        // 更新温度图表
         tempChart.data.datasets[0].data.push({
             x: time,
             y: data.temperature
         });
         
+        // 更新湿度图表
         humidChart.data.datasets[0].data.push({
             x: time,
             y: data.humidity
@@ -285,13 +294,9 @@ socket.on('new_data', function(data) {
             humidChart.data.datasets[0].data.shift();
         }
 
+        // 更新图表显示
         tempChart.update();
         humidChart.update();
-
-        // 更新数据日志
-        const log = document.getElementById('dataLog');
-        log.innerHTML += `<div class="log-entry">${time.toLocaleTimeString()} - [${data.topic}] 温度: ${data.temperature}°C, 湿度: ${data.humidity}%</div>`;
-        log.scrollTop = log.scrollHeight;
     }
 });
 
