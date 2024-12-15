@@ -1,5 +1,41 @@
 {% extends "base.html" %}
 {% block content %}
+
+<style>
+    /* 设置页面背景为紫蓝色渐变，这里是从深蓝色到紫色的渐变，可按需调整颜色及方向 */
+    body {
+        background: linear-gradient(to bottom, #00008B, #8A2BE2);
+        font-family: Arial, sans-serif; /* 设置全局字体为 Arial 或无衬线字体 */
+    }
+
+ .card {
+        background-color: #fff; /* 设置 card 背景颜色为白色 */
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* 添加卡片阴影效果 */
+    }
+
+ .card-header {
+        background-color: #007bff; /* 设置 card 头部背景颜色为蓝色 */
+        color: #fff; /* 设置 card 头部文字颜色为白色 */
+    }
+
+ .form-text {
+        color: #6c757d; /* 设置表单提示文字颜色为灰色 */
+    }
+
+ .text-success {
+        color: #28a745; /* 设置成功提示文字颜色为绿色 */
+    }
+
+ .text-info {
+        color: #17a2b8; /* 设置信息提示文字颜色为浅蓝色 */
+    }
+
+ .text-warning {
+        color: #ffc107; /* 设置警告提示文字颜色为黄色 */
+    }
+</style>
+
+
 <div class="card">
     <div class="card-header">
         <h5 class="mb-0">MQTT数据订阅器，测试中</h5>
