@@ -37,7 +37,8 @@
 
 3. 启动 Mosquitto 服务:
    ```
-   net start mosquitto
+  .\mosquitto -c .\mosquitto.conf -v
+
    ```
 
 4. 安装依赖:

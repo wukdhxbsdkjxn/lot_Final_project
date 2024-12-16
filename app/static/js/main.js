@@ -3,6 +3,7 @@ let socket = io();
 let publishing = false;
 let tempChart = null;
 let humidChart = null;
+let pressureChart = null;
 const maxDataPoints = 50;
 let collectedData = [];  // 保留这个用于预测功能
 
@@ -32,63 +33,63 @@ function initCharts() {
         },
         plugins: {
             tooltip: {
-                mode: 'index',
-                intersect: false
+                mode: 'nearest',
+                intersect: true
             }
         }
     };
 
+    // 初始化温度图表
     if (document.getElementById('tempChart')) {
         tempChart = new Chart(document.getElementById('tempChart'), {
-            type: 'line',
+            type: 'scatter',  // 改为散点图
             data: {
                 datasets: [{
                     label: '温度 (°C)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.5)',
                     borderColor: 'rgb(255, 99, 132)',
                     data: [],
-                    tension: 0.4
+                    pointRadius: 5,  // 设置点的大小
+                    pointHoverRadius: 8  // 设置鼠标悬停时点的大小
                 }]
             },
-            options: {
-                ...commonOptions,
-                scales: {
-                    ...commonOptions.scales,
-                    y: {
-                        ...commonOptions.scales.y,
-                        title: {
-                            display: true,
-                            text: '温度 (°C)'
-                        }
-                    }
-                }
-            }
+            options: commonOptions
         });
     }
 
+    // 初始化湿度图表
     if (document.getElementById('humidChart')) {
         humidChart = new Chart(document.getElementById('humidChart'), {
-            type: 'line',
+            type: 'scatter',  // 改为散点图
             data: {
                 datasets: [{
                     label: '湿度 (%)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
                     borderColor: 'rgb(54, 162, 235)',
                     data: [],
-                    tension: 0.4
+                    pointRadius: 5,
+                    pointHoverRadius: 8
                 }]
             },
-            options: {
-                ...commonOptions,
-                scales: {
-                    ...commonOptions.scales,
-                    y: {
-                        ...commonOptions.scales.y,
-                        title: {
-                            display: true,
-                            text: '湿度 (%)'
-                        }
-                    }
-                }
-            }
+            options: commonOptions
+        });
+    }
+
+    // 初始化压力图表
+    if (document.getElementById('pressureChart')) {
+        pressureChart = new Chart(document.getElementById('pressureChart'), {
+            type: 'scatter',  // 改为散点图
+            data: {
+                datasets: [{
+                    label: '压力 (hPa)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                    borderColor: 'rgb(75, 192, 192)',
+                    data: [],
+                    pointRadius: 5,
+                    pointHoverRadius: 8
+                }]
+            },
+            options: commonOptions
         });
     }
 }
@@ -128,7 +129,7 @@ async function connectBroker() {
     }
 }
 
-// 修改连接��态监听
+// 修改连接态监听
 const client_type = window.location.pathname.includes('publisher') ? 'publisher' : 'subscriber';
 socket.on(`mqtt_connected_${client_type}`, function(data) {
     const connectBtn = document.getElementById('connectBtn');
@@ -182,9 +183,25 @@ function startPublishing() {
     reader.readAsText(file);
 }
 
+// 添加一个工具函数来转换主题名称为中文
+function getTopicDisplayName(topic) {
+    const topicName = topic.split('/').pop().toLowerCase(); // 获取主题的最后一部分
+    switch (topicName) {
+        case 'humidity':
+            return '湿度';
+        case 'pressure':
+            return '压力';
+        case 'temperature':
+            return '温度';
+        default:
+            return '温度';
+    }
+}
+
+// 修改发布数据的日志显示
 async function publishData(lines) {
     const topic = document.getElementById('topic').value || 'sensor/data';
-
+    
     for (let line of lines) {
         if (!publishing) break;
 
@@ -203,7 +220,7 @@ async function publishData(lines) {
                     temperature: parseFloat(value),
                     humidity: 0,
                     time: timestamp,
-                    topic: topic  // 添加主题信息
+                    topic: topic
                 };
 
                 const response = await fetch('/api/publish', {
@@ -215,7 +232,8 @@ async function publishData(lines) {
                 });
 
                 const log = document.getElementById('statusLog');
-                log.innerHTML += `<div class="log-entry">${timestamp} - 已发布到 ${topic}: 温度=${value}°C</div>`;
+                const topicDisplayName = getTopicDisplayName(topic);
+                log.innerHTML += `<div class="log-entry">${timestamp} - 已发布到 ${topic}: ${topicDisplayName}=${value}</div>`;
                 log.scrollTop = log.scrollHeight;
 
                 await new Promise(resolve => setTimeout(resolve, 1000));
@@ -237,7 +255,7 @@ function stopPublishing() {
 socket.on('new_data', function(data) {
     console.log('收到新数据:', data);
 
-    // 检查消息主题是否在已订阅列表中
+    // 检查���息主题是否在已订阅列���中
     const topicList = document.querySelector('.subscribed-topics');
     const topicItems = Array.from(topicList.getElementsByClassName('topic-item'));
     const isSubscribed = topicItems.some(item => item.textContent === data.topic);
@@ -247,56 +265,65 @@ socket.on('new_data', function(data) {
         return;
     }
 
-    // 1. 首先更新数据日志
+    // 更新数据日志
     const log = document.getElementById('dataLog');
     if (log) {
         const time = new Date(data.time);
         const entry = document.createElement('div');
         entry.className = 'log-entry';
-        entry.textContent = `${time.toLocaleTimeString()} - [${data.topic}] 温度: ${data.temperature}°C, 湿度: ${data.humidity}%`;
+        entry.textContent = `${time.toLocaleTimeString()} - [${data.topic}] 数值: ${data.temperature}`;
         log.appendChild(entry);
         log.scrollTop = log.scrollHeight;
     }
 
-    // 2. 然后更新图表
-    if (tempChart && humidChart) {
-        // 收集数据用于预测
-        collectedData.push({
-            timestamp: data.time,
-            value: data.temperature
-        });
+    // 根据主题选择要更新的图表
+    const time = new Date(data.time);
+    const value = data.temperature;
+    const topicName = data.topic.split('/').pop().toLowerCase();
+    let targetChart;
 
-        // 更新数据计数
-        document.getElementById('dataCount').textContent = `已收集${collectedData.length}条数据`;
+    switch (topicName) {
+        case 'humidity':
+            targetChart = humidChart;
+            break;
+        case 'pressure':
+            targetChart = pressureChart;
+            break;
+        case 'temperature':
+            targetChart = tempChart;
+            break;
+        default:
+            targetChart = tempChart; // 默��使用温度图表
+    }
 
-        // 当收集到足够数据时启用预测按钮
-        if (collectedData.length >= 50) {
-            document.getElementById('predictBtn').disabled = false;
-        }
-
-        const time = new Date(data.time);
-        
-        // 更新温度图表
-        tempChart.data.datasets[0].data.push({
+    if (targetChart) {
+        // 更新图表数据
+        targetChart.data.datasets[0].data.push({
             x: time,
-            y: data.temperature
-        });
-        
-        // 更新湿度图表
-        humidChart.data.datasets[0].data.push({
-            x: time,
-            y: data.humidity
+            y: value
         });
 
         // 限制数据点数量
-        if (tempChart.data.datasets[0].data.length > maxDataPoints) {
-            tempChart.data.datasets[0].data.shift();
-            humidChart.data.datasets[0].data.shift();
+        if (targetChart.data.datasets[0].data.length > maxDataPoints) {
+            targetChart.data.datasets[0].data.shift();
         }
 
         // 更新图表显示
-        tempChart.update();
-        humidChart.update();
+        targetChart.update();
+    }
+
+    // 收集数据用于预测
+    collectedData.push({
+        timestamp: data.time,
+        value: value
+    });
+
+    // 更新数据计数
+    document.getElementById('dataCount').textContent = `已收集${collectedData.length}条数据`;
+
+    // 当收集到足够数据时启用预测按钮
+    if (collectedData.length >= 50) {
+        document.getElementById('predictBtn').disabled = false;
     }
 });
 

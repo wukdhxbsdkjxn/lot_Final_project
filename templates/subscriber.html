@@ -1,5 +1,39 @@
 {% extends "base.html" %}
 {% block content %}
+<style>
+    /* 设置页面背景为紫蓝色渐变，与发布端保持一致 */
+    body {
+        background: linear-gradient(to bottom, #00008B, #8A2BE2);
+        font-family: Arial, sans-serif;
+    }
+
+    .card {
+        background-color: #fff;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-header {
+        background-color: #007bff;
+        color: #fff;
+    }
+
+    .form-text {
+        color: #6c757d;
+    }
+
+    .text-success {
+        color: #28a745;
+    }
+
+    .text-info {
+        color: #17a2b8;
+    }
+
+    .text-warning {
+        color: #ffc107;
+    }
+</style>
+
 <div class="card">
     <div class="card-header">
         <h5 class="mb-0">MQTT数据订阅器</h5>
@@ -38,6 +72,12 @@
                     <div class="card-header">湿度数据</div>
                     <div class="card-body">
                         <canvas id="humidChart"></canvas>
+                    </div>
+                </div>
+                <div class="card mb-4">
+                    <div class="card-header">压力数据</div>
+                    <div class="card-body">
+                        <canvas id="pressureChart"></canvas>
                     </div>
                 </div>
             </div>
