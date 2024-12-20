@@ -7,7 +7,12 @@ import pandas as pd
 import numpy as np
 
 # 全局变量存储预测结果
-prediction_results = None
+prediction_results = {
+    'timestamps': None,
+    'actual_values': None,
+    'predicted_values': None,
+    'topic': None  # 添加主题字段
+}
 
 @app.route('/')
 def index():
@@ -107,8 +112,9 @@ def prediction_results():
 def predict():
     global prediction_results
     try:
-        # 获取收集的数据
+        # 获取收集的数据和主题
         data = request.json['data']
+        topic = request.json['topic']  # 获取主题
 
         # 转换数据格式
         df = pd.DataFrame(data)
@@ -125,7 +131,8 @@ def predict():
         prediction_results = {
             'timestamps': results['test_timestamps'].astype('datetime64[s]').tolist(),
             'actual_values': results['y_test'].flatten().tolist(),
-            'predicted_values': results['test_pred'].flatten().tolist()
+            'predicted_values': results['test_pred'].flatten().tolist(),
+            'topic': topic
         }
 
         # 按时间排序

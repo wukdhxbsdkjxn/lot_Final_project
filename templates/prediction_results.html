@@ -61,6 +61,20 @@
 </div>
 
 <script>
+// 在 script 标签中添加工具函数
+function getTopicLabel(topic) {
+    switch (topic) {
+        case 'temperature':
+            return '温度 (°C)';
+        case 'humidity':
+            return '湿度 (%)';
+        case 'pressure':
+            return '气压 (hPa)';
+        default:
+            return '数值';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async function() {
     const loadingIndicator = document.getElementById('loadingIndicator');
     const resultContent = document.getElementById('resultContent');
@@ -69,6 +83,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         loadingIndicator.style.display = 'block';
         const response = await fetch('/api/prediction_results');
         const results = await response.json();
+        
+        // 获取主题对应的标签
+        const yAxisLabel = getTopicLabel(results.topic);
         
         // 填充数据表格
         const tableBody = document.getElementById('predictionTable');
@@ -80,9 +97,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${new Date(timestamp).toLocaleString()}</td>
-                <td>${actualValue.toFixed(2)}°C</td>
-                <td>${predictedValue.toFixed(2)}°C</td>
-                <td>${error.toFixed(2)}°C</td>
+                <td>${actualValue.toFixed(2)}${results.topic === 'temperature' ? '°C' : results.topic === 'humidity' ? '%' : 'hPa'}</td>
+                <td>${predictedValue.toFixed(2)}${results.topic === 'temperature' ? '°C' : results.topic === 'humidity' ? '%' : 'hPa'}</td>
+                <td>${error.toFixed(2)}${results.topic === 'temperature' ? '°C' : results.topic === 'humidity' ? '%' : 'hPa'}</td>
             `;
             tableBody.appendChild(row);
         });
@@ -149,7 +166,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     y: {
                         title: {
                             display: true,
-                            text: '温度 (°C)'
+                            text: yAxisLabel  // 使用主题对应的标签
                         },
                         beginAtZero: true
                     }
@@ -159,7 +176,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                         enabled: true,
                         callbacks: {
                             label: function(context) {
-                                return `${context.dataset.label}: ${context.parsed.y.toFixed(2)}°C`;
+                                const unit = results.topic === 'temperature' ? '°C' : 
+                                           results.topic === 'humidity' ? '%' : 'hPa';
+                                return `${context.dataset.label}: ${context.parsed.y.toFixed(2)}${unit}`;
                             }
                         }
                     }
